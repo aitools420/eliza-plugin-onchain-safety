@@ -1,0 +1,63 @@
+{
+  "name": "@wickpics/plugin-onchain-safety",
+  "version": "0.1.0",
+  "description": "ElizaOS plugin: multi-chain token-safety + de-rugged smart-money alpha for agents on PulseChain, Monad, Base & BSC — rug/honeypot verdicts, exit-liquidity, fresh-pool radar, and what alpha wallets are buying. Powered by onchain.wick.pics.",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "keywords": [
+    "elizaos",
+    "elizaos-plugin",
+    "plugin",
+    "token-safety",
+    "rug-check",
+    "honeypot",
+    "smart-money",
+    "crypto",
+    "defi",
+    "pulsechain",
+    "monad",
+    "base",
+    "bsc",
+    "web3",
+    "ai-agent"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aitools420/eliza-plugin-onchain-safety.git"
+  },
+  "homepage": "https://onchain.wick.pics",
+  "peerDependencies": {
+    "@elizaos/core": "*"
+  },
+  "devDependencies": {
+    "@elizaos/core": "latest",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  },
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "ONCHAIN_API_KEY": {
+        "type": "string",
+        "description": "Optional wsk_ key for the paid deep tier (real-time feeds). Omit for the free rate-limited tier. Get one at https://onchain.wick.pics",
+        "required": false,
+        "sensitive": true
+      }
+    }
+  }
+}
