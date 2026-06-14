@@ -1,7 +1,7 @@
 {
   "name": "@wickpics/plugin-onchain-safety",
   "version": "0.1.0",
-  "description": "ElizaOS plugin: multi-chain token-safety + de-rugged smart-money alpha for agents on PulseChain, Monad, Base & BSC — rug/honeypot verdicts, exit-liquidity, fresh-pool radar, and what alpha wallets are buying. Powered by onchain.wick.pics.",
+  "description": "ElizaOS plugin: multi-chain token-SAFETY for agents on PulseChain, Monad, Base & BSC — rug/honeypot verdicts (0-100 score + evidence), size-aware exit-liquidity, and a safety-scored fresh-pool radar. Powered by onchain.wick.pics. Informational, not financial advice.",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
