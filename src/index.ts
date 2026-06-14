@@ -210,11 +210,31 @@ const walletApprovals: Action = {
   examples: [[{ name: 'user', content: { text: 'what approvals does 0x... have on base that could drain it?' } }, { name: 'assistant', content: { text: 'Scanning active token approvals.', actions: ['ONCHAIN_WALLET_APPROVALS'] } }]],
 };
 
+// ── ADDRESS-POISONING SCANNER ────────────────────────────────────────────────
+const walletPoisonCheck: Action = {
+  name: 'ONCHAIN_WALLET_POISON_CHECK',
+  similes: ['ADDRESS_POISONING', 'POISON_CHECK', 'LOOKALIKE_ADDRESS', 'DUST_ATTACK', 'SAFE_TO_SEND'],
+  description:
+    'Scan a wallet\'s recent incoming transfers for address-poisoning attacks — dust/zero-value transfers from lookalike addresses (first-4+last-4 chars matching a real counterparty) seeded to trick a copy-paste of the wrong address. Use before sending to a "recently used" address.',
+  validate: async (_r, message) => /0x[a-fA-F0-9]{40}/.test(message?.content?.text || ''),
+  handler: async (runtime, message, _s, _o, callback) => {
+    const { chain, address } = parseChainAddress(message?.content?.text || '');
+    if (!address) { const text = 'Give me the wallet address (0x…) and chain to scan.'; await callback?.({ text }); return { success: false, text }; }
+    try {
+      const data = await apiGet(runtime, `/api/v1/poison-check?chain=${encodeURIComponent(chain)}&owner=${encodeURIComponent(address)}`);
+      const text = `🎯 Poison scan for ${address} on ${chain}: ${data?.poisoningSuspects ?? data?.suspects ?? '?'} suspect(s)\n${pretty(data)}${DISCLAIMER}`;
+      await callback?.({ text });
+      return { success: true, text, values: { poisoningSuspects: data?.poisoningSuspects ?? data?.suspects ?? null } };
+    } catch (e: any) { const text = `Poison scan failed: ${e?.message ?? e}`; await callback?.({ text }); return { success: false, text, error: String(e?.message ?? e) }; }
+  },
+  examples: [[{ name: 'user', content: { text: 'before I send to that address, is 0x... poisoned on base?' } }, { name: 'assistant', content: { text: 'Scanning for lookalike address-poisoning.', actions: ['ONCHAIN_WALLET_POISON_CHECK'] } }]],
+};
+
 export const onchainSafetyPlugin: Plugin = {
   name: 'onchain-safety',
   description:
-    'Multi-chain token-SAFETY for AI agents on PulseChain, Monad, Base & BSC: a "safe to interact?" verdict, rug/honeypot scoring + evidence, ownership/renounce + privilege checks, size-aware exit-liquidity, wallet approval (drainer) scanning, and a fresh-pool rug radar — so an agent never touches a rug or a drainer. Deterministic, no AI. Free tier needs no key; x402 pay-per-call available. Powered by onchain.wick.pics. Informational, not financial advice.',
-  actions: [safeToInteract, checkSafety, checkOwnership, walletApprovals, exitSafety, freshRug],
+    'Multi-chain token-SAFETY for AI agents on PulseChain, Monad, Base & BSC: a "safe to interact?" verdict, rug/honeypot scoring + evidence, ownership/renounce + privilege checks, size-aware exit-liquidity, wallet approval (drainer) scanning, address-poisoning (lookalike) detection, and a fresh-pool rug radar — so an agent never touches a rug, a drainer, or a poisoned address. Deterministic, no AI. Free tier needs no key; x402 pay-per-call available. Powered by onchain.wick.pics. Informational, not financial advice.',
+  actions: [safeToInteract, checkSafety, checkOwnership, walletApprovals, walletPoisonCheck, exitSafety, freshRug],
   providers: [],
   services: [],
   init: async () => {
