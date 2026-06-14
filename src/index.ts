@@ -150,11 +150,71 @@ const freshRug: Action = {
   ],
 };
 
+// ── SAFE TO INTERACT? (composite — the headline pre-action check) ────────────
+const safeToInteract: Action = {
+  name: 'ONCHAIN_SAFE_TO_INTERACT',
+  similes: ['SAFE_TO_INTERACT', 'SHOULD_I_TOUCH_THIS', 'IS_IT_SAFE_TO_USE', 'CAN_I_INTERACT'],
+  description:
+    'One call before touching a contract/token: bundles the safety verdict + ownership/privileges into a single recommendation — SAFE_TO_INTERACT / CAUTION / DO_NOT_INTERACT — with reasons. Use before buying, swapping into, approving, or accepting an unknown token.',
+  validate: async (_r, message) => /0x[a-fA-F0-9]{40}/.test(message?.content?.text || ''),
+  handler: async (runtime, message, _s, _o, callback) => {
+    const { chain, address } = parseChainAddress(message?.content?.text || '');
+    if (!address) { const text = 'Give me the contract/token address (0x…) and chain.'; await callback?.({ text }); return { success: false, text }; }
+    try {
+      const data = await apiGet(runtime, `/api/v1/safe-to-interact?chain=${encodeURIComponent(chain)}&address=${encodeURIComponent(address)}`);
+      const text = `🧭 ${address} on ${chain}: ${data?.recommendation ?? '?'}\n${pretty(data)}${DISCLAIMER}`;
+      await callback?.({ text });
+      return { success: true, text, values: { recommendation: data?.recommendation ?? null } };
+    } catch (e: any) { const text = `Safe-to-interact check failed: ${e?.message ?? e}`; await callback?.({ text }); return { success: false, text, error: String(e?.message ?? e) }; }
+  },
+  examples: [[{ name: 'user', content: { text: 'is it safe to interact with 0x95B303987A60C71504D99Aa1b13B4DA07b0790ab on pulsechain?' } }, { name: 'assistant', content: { text: 'Running the composite safe-to-interact check.', actions: ['ONCHAIN_SAFE_TO_INTERACT'] } }]],
+};
+
+// ── CHECK OWNERSHIP / RENOUNCE + PRIVILEGES ──────────────────────────────────
+const checkOwnership: Action = {
+  name: 'ONCHAIN_CHECK_OWNERSHIP',
+  similes: ['CHECK_OWNERSHIP', 'IS_OWNERSHIP_RENOUNCED', 'OWNER_PRIVILEGES', 'RENOUNCED', 'IS_IT_UPGRADEABLE'],
+  description:
+    'Is a token\'s ownership renounced, is it upgradeable (proxy), and what powers can an active owner still use (mint / blacklist / pause / adjust tax)? Use when asked who controls a token or whether ownership is renounced.',
+  validate: async (_r, message) => /0x[a-fA-F0-9]{40}/.test(message?.content?.text || ''),
+  handler: async (runtime, message, _s, _o, callback) => {
+    const { chain, address } = parseChainAddress(message?.content?.text || '');
+    if (!address) { const text = 'Give me the token address (0x…) and chain.'; await callback?.({ text }); return { success: false, text }; }
+    try {
+      const data = await apiGet(runtime, `/api/v1/ownership?chain=${encodeURIComponent(chain)}&address=${encodeURIComponent(address)}`);
+      const text = `🔑 Ownership for ${address} on ${chain}: ${data?.owner?.status ?? '?'}${data?.renounced ? ' (renounced)' : ''}\n${pretty(data)}${DISCLAIMER}`;
+      await callback?.({ text });
+      return { success: true, text, values: { renounced: data?.renounced ?? null } };
+    } catch (e: any) { const text = `Ownership check failed: ${e?.message ?? e}`; await callback?.({ text }); return { success: false, text, error: String(e?.message ?? e) }; }
+  },
+  examples: [[{ name: 'user', content: { text: 'is ownership renounced for 0x95B303987A60C71504D99Aa1b13B4DA07b0790ab on pulsechain?' } }, { name: 'assistant', content: { text: 'Checking ownership + privileges.', actions: ['ONCHAIN_CHECK_OWNERSHIP'] } }]],
+};
+
+// ── WALLET APPROVAL SCANNER ──────────────────────────────────────────────────
+const walletApprovals: Action = {
+  name: 'ONCHAIN_WALLET_APPROVALS',
+  similes: ['WALLET_APPROVALS', 'CHECK_APPROVALS', 'WHAT_CAN_DRAIN_MY_WALLET', 'TOKEN_ALLOWANCES', 'REVOKE_CHECK'],
+  description:
+    'Enumerate a wallet\'s active ERC-20 approvals (allowances granted to spender contracts) and flag the unlimited ones — the classic wallet-drainer vector. Use when asked what could drain a wallet, or to audit a wallet\'s approvals. Scans a recent block window.',
+  validate: async (_r, message) => /0x[a-fA-F0-9]{40}/.test(message?.content?.text || ''),
+  handler: async (runtime, message, _s, _o, callback) => {
+    const { chain, address } = parseChainAddress(message?.content?.text || '');
+    if (!address) { const text = 'Give me the wallet address (0x…) and chain to scan.'; await callback?.({ text }); return { success: false, text }; }
+    try {
+      const data = await apiGet(runtime, `/api/v1/approvals?chain=${encodeURIComponent(chain)}&owner=${encodeURIComponent(address)}`);
+      const text = `🔓 Approvals for ${address} on ${chain}: ${data?.activeApprovals ?? '?'} active, ${data?.unlimitedApprovals ?? '?'} unlimited\n${pretty(data)}${DISCLAIMER}`;
+      await callback?.({ text });
+      return { success: true, text, values: { unlimitedApprovals: data?.unlimitedApprovals ?? null } };
+    } catch (e: any) { const text = `Approval scan failed: ${e?.message ?? e}`; await callback?.({ text }); return { success: false, text, error: String(e?.message ?? e) }; }
+  },
+  examples: [[{ name: 'user', content: { text: 'what approvals does 0x... have on base that could drain it?' } }, { name: 'assistant', content: { text: 'Scanning active token approvals.', actions: ['ONCHAIN_WALLET_APPROVALS'] } }]],
+};
+
 export const onchainSafetyPlugin: Plugin = {
   name: 'onchain-safety',
   description:
-    'Multi-chain token-SAFETY for AI agents on PulseChain, Monad, Base & BSC: rug/honeypot verdict with a 0–100 score + evidence (contract risk, liquidity, transfer-sim, LP-burn), size-aware exit-liquidity, and a safety-scored fresh-pool radar — so an agent never touches a rug. Free tier needs no key; x402 pay-per-call available. Powered by onchain.wick.pics. Informational, not financial advice.',
-  actions: [checkSafety, exitSafety, freshRug],
+    'Multi-chain token-SAFETY for AI agents on PulseChain, Monad, Base & BSC: a "safe to interact?" verdict, rug/honeypot scoring + evidence, ownership/renounce + privilege checks, size-aware exit-liquidity, wallet approval (drainer) scanning, and a fresh-pool rug radar — so an agent never touches a rug or a drainer. Deterministic, no AI. Free tier needs no key; x402 pay-per-call available. Powered by onchain.wick.pics. Informational, not financial advice.',
+  actions: [safeToInteract, checkSafety, checkOwnership, walletApprovals, exitSafety, freshRug],
   providers: [],
   services: [],
   init: async () => {

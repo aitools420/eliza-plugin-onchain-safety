@@ -16,6 +16,9 @@ and is it safe?" — so your agent never touches a rug. Powered by the hosted en
 | `ONCHAIN_CHECK_TOKEN_SAFETY` | SAFE…LIKELY_RUG verdict + 0–100 score + evidence (contract risk, liquidity, honeypot transfer-sim, LP-burn) for a `0x…` token. |
 | `ONCHAIN_EXIT_SAFETY` | Can you sell $X at acceptable slippage? Size-aware price-impact + safety. |
 | `ONCHAIN_FRESH_RUG_RADAR` | The newest pools, each safety-scored the second it appeared. |
+| `ONCHAIN_SAFE_TO_INTERACT` | One call → SAFE_TO_INTERACT / CAUTION / DO_NOT_INTERACT (safety + ownership bundled), with reasons. |
+| `ONCHAIN_CHECK_OWNERSHIP` | Renounced? upgradeable? what can an active owner still do (mint/blacklist/pause/tax)? |
+| `ONCHAIN_WALLET_APPROVALS` | A wallet's active ERC-20 approvals, flagging unlimited grants — the drainer vector. |
 
 ## Why it's different
 The well-known safety APIs are strong on Ethereum/BSC but thin-to-absent on **PulseChain and
